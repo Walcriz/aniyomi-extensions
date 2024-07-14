@@ -164,7 +164,19 @@ class Jellyfin(private val suffix: String) : ConfigurableAnimeSource, AnimeHttpS
 
     override fun animeDetailsRequest(anime: SAnime): Request {
         if (!anime.url.startsWith("http")) throw Exception("Migrate from jellyfin to jellyfin")
-        return GET(anime.url)
+        val httpUrl = baseUrl.toHttpUrl()
+        val parts = anime.url.split("&")
+        val itemId = parts[1].split("=")[1]
+//        val type = parts[2].split("=")[1]
+//        val seriesId = parts[3].split("=")[1]
+        val url = httpUrl.newBuilder().apply {
+            addPathSegment("Users")
+            addPathSegment(userId)
+            addPathSegment("Items")
+            addPathSegment(itemId)
+        }.build()
+//        println("URL, DETAILS 1: $url")
+        return GET(url)
     }
 
     override fun animeDetailsParse(response: Response): SAnime {
@@ -177,6 +189,7 @@ class Jellyfin(private val suffix: String) : ConfigurableAnimeSource, AnimeHttpS
                 }.build()
             }
 
+//            println("URL, DETAILS 2: $url")
             client.newCall(
                 GET(url),
             ).execute().parseAs<ItemDto>()
@@ -190,26 +203,32 @@ class Jellyfin(private val suffix: String) : ConfigurableAnimeSource, AnimeHttpS
     // ============================== Episodes ==============================
 
     override fun episodeListRequest(anime: SAnime): Request {
-        if (!anime.url.startsWith("http")) throw Exception("Migrate from jellyfin to jellyfin")
-        val httpUrl = anime.url.toHttpUrl()
-        val itemId = httpUrl.pathSegments[3]
-        val fragment = httpUrl.fragment!!
+        if (!anime.url.startsWith("http")) throw Exception("URL for jellyfin must start with https://")
+        val httpUrl = baseUrl.toHttpUrl()
+        val parts = anime.url.split("&")
+        val itemId = parts[1].split("=")[1]
+        val type = parts[2].split("=")[1]
+        val seriesId = parts[3].split("=")[1]
 
-        val url = when {
-            fragment.startsWith("seriesId") -> {
+        var url = when {
+            type.startsWith("seriesId") -> {
+//                println("URL SeriesId")
                 httpUrl.newBuilder().apply {
-                    encodedPath("/")
                     addPathSegment("Shows")
-                    addPathSegment(fragment.split(",").last())
+                    addPathSegment(seriesId)
                     addPathSegment("Episodes")
-                    addQueryParameter("seasonId", httpUrl.pathSegments.last())
+                    addQueryParameter("seasonId", itemId)
                     addQueryParameter("userId", userId)
                     addQueryParameter("Fields", "Overview,MediaSources,DateCreated")
                 }.build()
             }
-            fragment.startsWith("boxSet") -> {
+            type.startsWith("boxSet") -> {
+//                println("URL BoxSet")
                 httpUrl.newBuilder().apply {
-                    removePathSegment(3)
+                    addPathSegment("Users")
+                    addPathSegment(userId)
+                    addPathSegment("Items")
+
                     addQueryParameter("Recursive", "true")
                     addQueryParameter("SortBy", "SortName")
                     addQueryParameter("SortOrder", "Ascending")
@@ -218,9 +237,9 @@ class Jellyfin(private val suffix: String) : ConfigurableAnimeSource, AnimeHttpS
                     addQueryParameter("Fields", "DateCreated")
                 }.build()
             }
-            fragment.startsWith("series") -> {
+            type.startsWith("series") -> {
+//                println("URL Series")
                 httpUrl.newBuilder().apply {
-                    encodedPath("/")
                     addPathSegment("Shows")
                     addPathSegment(itemId)
                     addPathSegment("Episodes")
@@ -228,11 +247,22 @@ class Jellyfin(private val suffix: String) : ConfigurableAnimeSource, AnimeHttpS
                 }.build()
             }
             else -> {
+//                println("URL Other")
                 httpUrl.newBuilder().apply {
+                    addPathSegment("Users")
+                    addPathSegment(userId)
+                    addPathSegment("Items")
+                    addPathSegment(itemId)
                     addQueryParameter("Fields", "DateCreated")
                 }.build()
             }
         }
+
+        url = url.newBuilder().apply {
+            fragment(type)
+        }.build()
+
+//        println("Jellyfin URL: $url")
 
         return GET(url)
     }
@@ -259,9 +289,10 @@ class Jellyfin(private val suffix: String) : ConfigurableAnimeSource, AnimeHttpS
     }
 
     private fun episodeListParse(response: Response, prefix: String): List<SEpisode> {
-        val itemList = if (response.request.url.pathSize > 3) {
+        val itemList = if (response.request.url.fragment == "movie") {
             listOf(response.parseAs<ItemDto>())
         } else {
+//            println("URL JELLY HELLO :)")
             response.parseAs<ItemListDto>().items
         }
 

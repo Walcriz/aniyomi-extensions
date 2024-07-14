@@ -3,7 +3,6 @@ package eu.kanade.tachiyomi.animeextension.all.jellyfin
 import eu.kanade.tachiyomi.animesource.model.SAnime
 import eu.kanade.tachiyomi.animesource.model.SEpisode
 import kotlinx.serialization.Serializable
-import okhttp3.HttpUrl.Companion.toHttpUrl
 import org.apache.commons.text.StringSubstitutor
 import org.jsoup.Jsoup
 import java.text.ParseException
@@ -71,19 +70,13 @@ class ItemDto(
 
     fun toSAnime(baseUrl: String, userId: String): SAnime = SAnime.create().apply {
         val typeMap = mapOf(
-            "Season" to "seriesId,$seriesId",
+            "Season" to "seriesId",
             "Movie" to "movie",
             "BoxSet" to "boxSet",
             "Series" to "series",
         )
 
-        url = baseUrl.toHttpUrl().newBuilder().apply {
-            addPathSegment("Users")
-            addPathSegment(userId)
-            addPathSegment("Items")
-            addPathSegment(id)
-            fragment(typeMap[type])
-        }.build().toString()
+        url = "$baseUrl/web/index.html#/details?id=$id&INTERNAL_ITEM_ID=$id&INTERNAL_TYPE=${typeMap[type]}&INTERNAL_SEASON_ID=$seriesId"
         thumbnail_url = "$baseUrl/Items/$id/Images/Primary"
         title = name
         description = overview?.let {
