@@ -29,9 +29,9 @@ class ItemListDto(
 @Serializable
 class ItemDto(
     // Common
-    val name: String,
-    val type: String,
-    val id: String,
+    var name: String,
+    var type: String,
+    var id: String,
     val locationType: String,
     val imageTags: ImageDto,
 
@@ -39,12 +39,12 @@ class ItemDto(
     val collectionType: String? = null,
 
     // Anime
-    val seriesId: String? = null,
-    val seriesName: String? = null,
+    var seriesId: String? = null,
+    var seriesName: String? = null,
     val seasonName: String? = null,
 
     // Anime Details
-    val seriesStatus: String? = null,
+    val status: String? = null,
     val overview: String? = null,
     val genres: List<String>? = null,
     val studios: List<StudioDto>? = null,
@@ -90,7 +90,7 @@ class ItemDto(
         status = if (type == "Movie") {
             SAnime.COMPLETED
         } else {
-            seriesStatus.parseStatus()
+            this@ItemDto.status.parseStatus()
         }
 
         if (type == "Season") {

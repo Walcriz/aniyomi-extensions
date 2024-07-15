@@ -181,11 +181,11 @@ class Jellyfin(private val suffix: String) : ConfigurableAnimeSource, AnimeHttpS
 
     override fun animeDetailsParse(response: Response): SAnime {
         val data = response.parseAs<ItemDto>()
-        val infoData = if (preferences.useSeriesData && data.seriesId != null) {
+        val infoData = if (data.seriesId != null) {
             val url = response.request.url.let { url ->
                 url.newBuilder().apply {
                     removePathSegment(url.pathSize - 1)
-                    addPathSegment(data.seriesId)
+                    addPathSegment(data.seriesId!!)
                 }.build()
             }
 
@@ -196,6 +196,12 @@ class Jellyfin(private val suffix: String) : ConfigurableAnimeSource, AnimeHttpS
         } else {
             data
         }
+
+        infoData.type = data.type
+        infoData.seriesId = data.seriesId
+        infoData.id = data.id
+        infoData.name = data.name
+        infoData.seriesName = data.seriesName
 
         return infoData.toSAnime(baseUrl, userId)
     }
@@ -286,6 +292,10 @@ class Jellyfin(private val suffix: String) : ConfigurableAnimeSource, AnimeHttpS
         }
 
         return episodeList
+    }
+
+    override fun getAnimeUrl(anime: SAnime): String {
+        return anime.url
     }
 
     private fun episodeListParse(response: Response, prefix: String): List<SEpisode> {
